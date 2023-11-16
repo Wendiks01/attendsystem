@@ -1,241 +1,211 @@
-<?php 
-	include 'config1.php';
-	$updateFlag = 0;
+<?php
+
+ob_start();
+session_start();
+
+if($_SESSION['name']!='oasis')
+{
+  header('location: login.php');
+}
 ?>
 
-<div class="container">
-  <div class="row ">
-    <div class="col-md-12 col-lg-12">
-			<h1 class="page-header">Take Attendance</h1>  
-		</div>
-	</div>
-	<div class="row text-center">
-		<div class="col-md-12 col-lg-12">
-			<form action="index.php" method="get" class="form-inline" id="subjectForm" data-toggle="validator">
-				<div class="form-group">
-					<label for="select" class="control-label">Subject:</label>
-					<?php
-											
-						$query_subject = "SELECT subject.name, subject.id from subject 
-						INNER JOIN user_subject WHERE user_subject.id = subject.id AND user_subject.uid = {$_SESSION['uid']}  ORDER BY subject.name";
-						$sub=$conn->query($query_subject);
-						$rsub=$sub->fetchAll(PDO::FETCH_ASSOC);
-						echo "<select name='subject' class='form-control' required='required'>";
-						for($i = 0; $i<count($rsub); $i++)
-						{
-							if ($_GET['subject'] == $rsub[$i]['id']) {
-								echo"<option value='". $rsub[$i]['id']."' selected='selected'>".$rsub[$i]['name']."</option>";
-							}
-							else {
-								echo"<option value='". $rsub[$i]['id']."'>".$rsub[$i]['name']."</option>";
-							}
-						}
-						echo"</select>";
-					?>									
-				</div>
+<?php
+    include('connect.php');
+    $radio = ''; // Initialize $radio with an empty string or appropriate default value
 
-				<div class="form-group" data-provide="datepicker">
-					<label for="select" class="control-label">Date:</label>
-					<input type="date" class="form-control" name="date" value="<?php print isset($_GET['date']) ? $_GET['date'] : ''; ?>" required>
-				</div>
+// Check if the variable is set in $_POST
+if (isset($_POST['radio_value'])) {
+    $radio = $_POST['radio_value'];
+}
 
-				<button type="submit" class="btn btn-danger" style='border-radius:0%;' name="sbt_stn"><i class="glyphicon glyphicon-filter"></i> Load</button>
-			</form>
-				
+// Use the $radio variable elsewhere in your code
+// For example:
+echo "Selected radio value is: " . $radio;
+
+    try {
+      if (isset($_POST['att'])) {
+          $course = $_POST['whichcourse'];
+          
+          // Assuming you have established a PDO connection named $pdo
+          $stmt = $pdo->prepare("INSERT INTO attendance (stat_id, course, st_status, stat_date) VALUES (?, ?, ?, ?)");
+  
+          foreach ($_POST['st_status'] as $i => $st_status) {
+              $stat_id = $_POST['stat_id'][$i];
+              if ($stat_id !== null && $stat_id !== '') {
+                  $dp = date('Y-m-d');
+              
+                  // Bind parameters and execute the prepared statement
+                  $stmt->execute([$stat_id, $course, $st_status, $dp]);
+              }
+          }
+  
+          $att_msg = "Attendance Recorded.";
+      }
+  } catch (PDOException $e) {
+      $error_msg = $e->getMessage();
+  }
+  
+  
+ ?>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Attendance Management System</title>
+<meta charset="UTF-8">
+
+  <link rel="stylesheet" type="text/css" href="../css/main.css">
+  <!-- Latest compiled and minified CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" >
+   
+  <!-- Optional theme -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" >
+   
+  <link rel="stylesheet" href="styles.css" >
+   
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 
 
-			<?php
-				if(isset($_GET['date']) && isset($_GET['subject'])) :
-			?>
-			
-			<?php 
-				$todayTime = time();
-				$submittedDate = strtotime($_GET['date']);
-				if ($submittedDate <= $todayTime) :
-			?>
-			<form action="index.php" method="post">
-			
-			<div class="margin-top-bottom-medium">
-				<button type="submit" class="btn btn-success btn-block" style='border-radius:0%;' name="sbt_top"><i class="glyphicon glyphicon-ok-sign"></i> Save Attendance</button>
-			</div>
-			
-			<table class="table table-striped table-hover">
-				<thead>
-					<tr>
-						<th class="text-center">Roll</th>
-						<th class="text-center">Student's Name</th>
-						<th class="text-center"><input type="checkbox" class="chk-head" /> All Present</th>
-					</tr>
-				</thead>
+<style type="text/css">
+  .status{
+    font-size: 10px;
+  }
 
-				<?php
-					 $dat = $_GET['date'];
-					 $ddate = strtotime($dat);
-					 $sub=$_GET['subject'];
-					$que= "SELECT sid, aid, ispresent  from attendance  WHERE date  =$ddate
-					AND id=$sub ORDER BY sid";
-					$ret=$conn->query($que);
-					$attData=$ret->fetchAll(PDO::FETCH_ASSOC);
-					
-					if(count($attData))
-					{
-						$updateFlag=1;
-					}
-					else{
-						$updateFlag=0;
+</style>
 
-					}
+</head>
+<body>
 
-					$qu = "SELECT student.sid, student.name, student.rollno from student INNER JOIN student_subject WHERE student.sid = student_subject.sid AND student_subject.id  = {$_GET['subject']}  ORDER BY student.sid";
-					$stu=$conn->query($qu);
-					$rstu=$stu->fetchAll(PDO::FETCH_ASSOC);
+<header>
 
-					
-					echo"<tbody>";
-					for($i = 0; $i<count($rstu); $i++)
-					{
-						echo"<tr>";
+  <h1>Attendance Management System</h1>
+  <div class="navbar">
+  <a href="index.php" style="text-decoration:none;">Home</a>
+  <a href="students.php" style="text-decoration:none;">Students</a>
+  <a href="teachers.php" style="text-decoration:none;">Faculties</a>
+  <a href="attendance.php" style="text-decoration:none;">Attendance</a>
+  <a href="report.php" style="text-decoration:none;">Report</a>
+  <a href="../logout.php" style="text-decoration:none;">Logout</a>
 
-						if($updateFlag) {
-							echo"<td>".$rstu[$i]['rollno']."<input type='hidden' name='st_sid[]' value='" . $rstu[$i]['sid'] . "'>" ."<input type='hidden' name='att_id[]' value='" . $attData[$i]['aid'] . "'>".  "</td>";
-							echo"<td>".$rstu[$i]['name']."</td>";
-
-							
-								if(($rstu[$i]['sid'] ==  $attData[$i]['sid']) && ($attData[$i]['ispresent']))
-								{
-
-									echo "<td><input class='chk-present' checked type='checkbox' name='chbox[]' value='" . $rstu[$i]['sid'] . "'></td>";
-								}
-								else
-								{
-									echo "<td><input class='chk-present' type='checkbox' name='chbox[]' value='" . $rstu[$i]['sid'] . "'></td>";
-								}
-							}
-							else {
-								echo"<td>".$rstu[$i]['rollno']."<input type='hidden' name='st_sid[]' value='" . $rstu[$i]['sid'] . "'></td>";
-								echo"<td>".$rstu[$i]['name']."</td>";
-								echo"<td><input class='chk-present' type='checkbox' name='chbox[]' value='" . $rstu[$i]['sid'] . "'></td>";	
-							}
-							
-							
-						echo"</tr>";
-					}
-					echo"</tbody>";
-				
-				?>
-			</table> 
-
-			<?php if($updateFlag) : ?>
-				<input type="hidden" name="updateData" value="1">
-			<?php else: ?>
-				<input type="hidden" name="updateData" value="0">
-			<?php endif; ?>
-
-			<input type="hidden" name="date" value="<?php print isset($_GET['date']) ? $_GET['date'] : ''; ?>">
-			<input type="hidden" name="subject" value="<?php print isset($_GET['subject']) ? $_GET['subject'] : ''; ?>">
-			<button type="submit" class="btn btn-success btn-block" style='border-radius:0%;' name="sbt_top"><i class="glyphicon glyphicon-ok-sign"></i> Save Attendance</button>
-			
-			</form>
-			
-			<?php
-				else :
-			?>
-			
-			<p>&nbsp;</p>
-			<div class="alert alert-dismissible alert-danger">
-				<button type="button" class="close" data-dismiss="alert">×</button>
-				<strong>Sorry!</strong> Attendance cannot be recorded for future dates!.
-			</div>	
-			
-			<?php
-				endif;
-			?>
-			
-			<?php endif;?>
-			
-			<?php
-
-				if (isset($_POST['sbt_top'])) {
-					if(isset($_POST['updateData']) && ($_POST['updateData'] == 1) ) {
-							
-						// prepare sql and bind parameters
-					
-							$id = $_POST['subject'];
-							$uid = $_SESSION['uid'];
-							$p = 0;
-							$st_sid =  $_POST['st_sid'];
-							$attt_aid =  $_POST['att_id'];
-							$ispresent = array();
-							if (isset($_POST['chbox'])) {
-								$ispresent =  $_POST['chbox'];	
-							}
-							
-							for($j = 0; $j < count($st_sid); $j++)
-							{
-									//echo "hii";
-								// UPDATE `attendance` SET `ispresent` = '1' WHERE `attendance`.`aid` = 79;
-
-									$stmtInsert = $conn->prepare("UPDATE attendance SET ispresent = :isMarked WHERE aid = :aid"); 
-														
-									if (count($ispresent)) {
-										$p = (in_array($st_sid[$j], $ispresent)) ? 1 : 0;	
-									}
-									
-									$stmtInsert->bindParam(':isMarked', $p);
-									$stmtInsert->bindParam(':aid', $attt_aid[$j]); 
-									$stmtInsert->execute();
-								//echo "data upadted";
-							}		
-						echo '<p>&nbsp;</p><div class="alert alert-dismissible alert-success">
-                <button type="button" class="close" data-dismiss="alert">×</button>
-                <strong>Well done!</strong> Attendance Recorded Successfully!.
-              </div>';	
-
-					}
-					else {
-						
-						// prepare sql and bind parameters
-							$date = $_POST['date'];
-						$tstamp = strtotime($date);
-							$id = $_POST['subject'];
-							$uid = $_SESSION['uid'];
-							$p = 0;
-							$st_sid =  $_POST['st_sid'];
-							$ispresent = array();
-							if (isset($_POST['chbox'])) {
-								$ispresent =  $_POST['chbox'];	
-							}
-							
-							for($j = 0; $j < count($st_sid); $j++)
-							{
-									//echo "hii";
-									$stmtInsert = $conn->prepare("INSERT INTO attendance (sid, date, ispresent, uid, id) 
-								VALUES (:sid, :date, :ispresent, :uid, :id)");
-									
-									if (count($ispresent)) {
-										$p = (in_array($st_sid[$j], $ispresent)) ? 1 : 0;	
-									}
-									
-
-									$stmtInsert->bindParam(':sid', $st_sid[$j]);
-									$stmtInsert->bindParam(':date', $tstamp);
-									$stmtInsert->bindParam(':ispresent', $p);
-									$stmtInsert->bindParam(':uid', $uid);
-									$stmtInsert->bindParam(':id', $id); 
-									$stmtInsert->execute();
-							//	echo "data upadted".$j;
-						}
-						echo '<p>&nbsp;</p><div class="alert alert-dismissible alert-success">
-                <button type="button" class="close" data-dismiss="alert">×</button>
-                <strong>Well done!</strong> Attendance Recorded Successfully!.
-              </div>';	
-					}
-				}			
-			?>
-		</div>
-	</div>
 </div>
 
-<script>
-	$('#subjectForm').validator();	
-</script>
+</header>
+
+<center>
+
+<div class="row">
+
+  <div class="content">
+    <h3>Attendance of <?php echo date('Y-m-d'); ?></h3>
+    <br>
+
+    <center><p><?php if(isset($att_msg)) echo $att_msg; if(isset($error_msg)) echo $error_msg; ?></p></center> 
+    
+    <form action="" method="post" class="form-horizontal col-md-6 col-md-offset-3">
+
+     <div class="form-group">
+
+               <!-- <label>Select Batch</label>
+                
+                <select name="whichbatch" id="input1">
+                      <option name="eight" value="38">38</option>
+                      <option name="seven" value="37">37</option>
+                </select>-->
+
+
+                <label>Enter Batch</label>
+                <input type="text" name="whichbatch" id="input2" placeholder="Only 2020">
+              </div>
+               
+     <input type="submit" class="btn btn-danger col-md-2 col-md-offset-5" style="border-radius:0%" value="Search" name="batch" />
+
+    </form>
+
+    <div class="content"></div>
+    <form action="" method="post">
+
+      <div class="form-group">
+
+        <label >Select Subject</label>
+              <select name="whichcourse" id="input1">
+              <option  value="INPRO">INTERNET PROGRAMMING</option>
+         <option  value="AI">INTRO TO A.I</option>
+        <option  value="COMARC">ADVANCED COMPUTER ARCHITECTURE</option>
+        <option  value="NOS">ADVANCED NETWORK OPERATING SYSTEM</option>
+        <option  value="ISF">IT SECURITY FUNDAMENTALS</option>
+        <option  value="PLC">PROGRAMMING LANGUAGE CONCEPTS</option>
+        <option  value="CE">COMPUTER ETHICS</option>
+        <option  value="SAD">SOFTWARE ARCHITECTURE DESIGN</option>
+        
+              </select>
+
+      </div>
+
+    <table class="table table-stripped">
+      <thead>
+        <tr>
+          <th scope="col">Reg. No.</th>
+          <th scope="col">Name</th>
+          <th scope="col">Department</th>
+          <th scope="col">Batch</th>
+          <th scope="col">Semester</th>
+          <th scope="col">Email</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <?php
+$i = 0;
+
+// Assuming you have established a PDO connection named $pdo
+$stmt = $pdo->query("SELECT * FROM students ORDER BY st_id ASC");
+
+while ($data = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $i++;
+    // Your code logic here
+    // For example:
+    // $data['column_name'] to access columns of each row
+
+?>
+
+  <body>
+     <tr>
+       <td><?php echo $data['st_id']; ?> <input type="hidden" name="stat_id[]" value="<?php echo $data['st_id']; ?>"> </td>
+       <td><?php echo $data['st_name']; ?></td>
+       <td><?php echo $data['st_dept']; ?></td>
+       <td><?php echo $data['st_batch']; ?></td>
+       <td><?php echo $data['st_sem']; ?></td>
+       <td><?php echo $data['st_email']; ?></td>
+       <td>
+         <label>Present</label>
+         <input type="radio" name="st_status[<?php echo $radio; ?>]" value="Present" >
+         <label>Absent </label>
+         <input type="radio" name="st_status[<?php echo $radio; ?>]" value="Absent" checked>
+       </td>
+     </tr>
+  </body>
+ 
+
+
+
+     <?php
+
+        $radio++;
+      } 
+
+      ?>
+    </table>
+
+    <center><br>
+    <input type="submit" class="btn btn-primary col-md-2 col-md-offset-10" value="Save!" name="att" />
+  </center>
+
+</form>
+  </div>
+
+</div>
+
+</center>
+
+</body>
+</html>
